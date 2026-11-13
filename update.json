@@ -1,12 +1,12 @@
 {
-  "tag_name": "v1.3.7",
+  "tag_name": "v1.3.8",
   "assets": [
     {
       "name": "goutongban.apk",
       "state": "uploaded",
-      "browser_download_url": "https://github.com/tibbar213/goutongban/releases/download/v1.3.7/goutongban.apk",
-      "size": 8962149,
-      "digest": "sha256:001207c34bc6d73ead5bc0486ee7cfd62374eecbe071fc1fdc31caa42f6821c3"
+      "browser_download_url": "https://github.com/tibbar213/goutongban/releases/download/v1.3.8/goutongban.apk",
+      "size": 8962205,
+      "digest": "sha256:4d78e3db914e343752112c5259bdba6fb14d246018cbfac811ba63963223f9dc"
     }
   ]
 }

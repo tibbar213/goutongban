@@ -7,6 +7,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
@@ -39,8 +40,8 @@ class NarrowScreenDeviceTest {
         val layout = layouts.single()
         assertTrue(layout.lineCount > 1)
         assertFalse("句子有横向溢出", layout.didOverflowWidth)
-        ui.onNodeWithText("读整句").assertIsDisplayed().performClick()
-        ui.onNodeWithText("撤销").performClick()
+        ui.onNodeWithContentDescription("读整句").assertIsDisplayed().performClick()
+        ui.onNodeWithContentDescription("撤销").performClick()
         ui.onNodeWithText("请帮我翻身，请").assertIsDisplayed()
     }
 }

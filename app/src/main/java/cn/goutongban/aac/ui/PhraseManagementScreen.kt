@@ -31,7 +31,7 @@ internal fun PhraseManagementScreen(type: CustomEntryType, model: BoardModel) {
 
     PageList {
         item {
-            val title = if (type == CustomEntryType.WORD) "添加词语" else "添加整句"
+            val title = if (type == CustomEntryType.WORD) "添加常用词" else "添加常用句"
             ActionButton(title, Modifier.fillMaxWidth(), primary = true, enabled = !busy) {
                 model.openEntryEditor(type)
             }

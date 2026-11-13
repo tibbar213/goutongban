@@ -64,7 +64,7 @@ class PredictionTest {
         assertEquals(book.next(next), book.candidates(next, false, ready).words)
         assertEquals(book.next(next), book.candidates(next, true, null).words)
         assertEquals(
-            (book.next(next) + ready.words).distinctBy(WordPrediction::buttonText),
+            (ready.words + book.next(next)).distinctBy(WordPrediction::buttonText),
             book.candidates(next, true, ready).words
         )
         assertEquals(book.next(next), book.candidates(next, true, failed).words)
@@ -124,7 +124,7 @@ class PredictionTest {
         val model = PredictionResult.Ready(listOf("喝水", "出门"))
         val assisted = book.candidates(prefix, true, model, learned).words
         assertEquals(learned, assisted.take(2))
-        assertEquals("出门", assisted.last())
+        assertEquals(listOf("听戏", "喝水", "出门"), assisted.take(3))
         assertTrue(assisted.containsAll(book.next(prefix)))
         assertEquals(WordPrediction.starters, book.candidates(Draft(), true, model, learned).words)
     }
@@ -168,6 +168,25 @@ class PredictionTest {
             assertEquals(2, server.requestCount)
             assertEquals("/v1/chat/completions", server.takeRequest().path)
             assertEquals("/v1/chat/completions", server.takeRequest().path)
+        }
+    }
+
+    @Test fun newPersonalWordsAreSentToTheModelAndKeptAsExactCandidates() = runBlocking {
+        val vocabulary = listOf("林小满", "Alex", "社区康复中心的李医生")
+        MockWebServer().use { server ->
+            val content = JSONArray(vocabulary + "UNKNOWN_WORD").toString()
+            server.enqueue(MockResponse().setBody(JSONObject().put("choices", JSONArray().put(
+                JSONObject().put("message", JSONObject().put("content", content))
+            )).toString()))
+            val result = ModelPrediction().suggest(
+                server.url("/v1/chat/completions"), "demo", "", listOf("我想找"),
+                vocabulary = vocabulary
+            )
+            assertEquals(PredictionResult.Ready(vocabulary), result)
+            val messages = JSONObject(server.takeRequest().body.readUtf8()).getJSONArray("messages")
+            val system = messages.getJSONObject(0).getString("content")
+            vocabulary.forEach { assertTrue(system.contains(it)) }
+            assertEquals("我想找", messages.getJSONObject(1).getString("content"))
         }
     }
 }

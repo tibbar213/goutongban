@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
@@ -29,7 +30,7 @@ class SmallScreenTest {
         ui.waitForIdle()
         assertEquals(2f, ui.activity.resources.configuration.fontScale, 0f)
         ui.onNodeWithTag("ai-prediction").assertIsDisplayed()
-        ui.onNodeWithText("添加词语").assertIsDisplayed()
+        ui.onNodeWithContentDescription("添加常用词").assertIsDisplayed()
         ui.onNodeWithTag("board-page").performScrollToNode(hasText("你"))
         val first = ui.onNodeWithText("我").getUnclippedBoundsInRoot()
         val second = ui.onNodeWithText("你").getUnclippedBoundsInRoot()
@@ -48,6 +49,14 @@ class SmallScreenTest {
     fun default360DpPhoneShowsFourOpeningWordsInFirstRow() = assertFourColumns()
 
     private fun assertFourColumns() {
+        val box = ui.onNodeWithTag("sentence-box").getUnclippedBoundsInRoot()
+        val add = ui.onNodeWithContentDescription("添加常用词").assertIsDisplayed().getUnclippedBoundsInRoot()
+        val cloud = ui.onNodeWithTag("ai-prediction").assertIsDisplayed().getUnclippedBoundsInRoot()
+        val read = ui.onNodeWithContentDescription("读整句").assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertTrue(box.bottom - box.top <= 112.dp)
+        assertTrue(add.right <= cloud.left && add.bottom <= box.top)
+        assertTrue(read.left > box.left + (box.right - box.left) / 2)
+        assertTrue(read.right <= box.right && read.bottom <= box.bottom)
         val first = ui.onNodeWithText("我").assertIsDisplayed().getUnclippedBoundsInRoot()
         val second = ui.onNodeWithText("你").assertIsDisplayed().getUnclippedBoundsInRoot()
         assertTrue(first.right <= second.left)

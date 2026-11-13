@@ -10,13 +10,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,17 +69,6 @@ internal fun WordScreen(model: BoardModel) {
 
     Column(Modifier.fillMaxSize()) {
         SentenceBox(draft, model::readDraft, model::undoWord, model::clearWords)
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ActionButton("添加词语", Modifier.weight(1f)) {
-                model.openEntryEditor(CustomEntryType.WORD)
-            }
-            if (hasCustomWords) {
-                ActionButton("我的词语", Modifier.weight(1f), enabled = draft.canAppend, click = openCustomWords)
-            }
-        }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val availableWidth = maxWidth.value - 24f
             val columns = ((availableWidth + 6f) / (font * 3 * scale + 18f)).toInt().coerceIn(1, 4)
@@ -82,7 +78,16 @@ internal fun WordScreen(model: BoardModel) {
                 val paginate = draft.canPredict && !draft.complete
                 val pageSize = columns * 6
                 var visibleCount by remember(columns) { mutableIntStateOf(pageSize) }
+                val visibleWords = if (paginate) words.take(visibleCount) else words
+                val cells: List<String?> = when {
+                    !hasCustomWords -> visibleWords
+                    draft.words.isEmpty() -> visibleWords + listOf(null)
+                    else -> listOf(null) + visibleWords
+                }
                 val hasMore = paginate && words.size > visibleCount
+                LaunchedEffect(candidates?.hasOnlineWords) {
+                    if (candidates?.hasOnlineWords == true) listState.scrollToItem(0)
+                }
                 LaunchedEffect(hasMore, visibleCount, columns) {
                     if (hasMore) snapshotFlow {
                         listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -94,7 +99,7 @@ internal fun WordScreen(model: BoardModel) {
                     if (candidates?.canLoadMore == true && !hasMore) snapshotFlow {
                         listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                     }.collect { lastVisible ->
-                        val rows = (words.size + columns - 1) / columns
+                        val rows = (words.size + (if (hasCustomWords) 1 else 0) + columns - 1) / columns
                         if (lastVisible >= rows - 2) model.loadMorePredictions(draft)
                     }
                 }
@@ -104,12 +109,14 @@ internal fun WordScreen(model: BoardModel) {
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    grid(if (paginate) words.take(visibleCount) else words, columns, { it }, spacing = 6.dp) { word, modifier ->
+                    grid(cells, columns, { if (it == null) "custom-words" else "word:$it" }, spacing = 6.dp) { word, modifier ->
                         WordCard(
-                            word, modifier.heightIn(min = cardHeight), font,
+                            word ?: "我的词语", modifier.heightIn(min = cardHeight), font,
                             cellWidth = (availableWidth.dp - 6.dp * (columns - 1)) / columns,
-                            featured = draft.words.isEmpty() && word in FeaturedStarters
-                        ) { model.addWord(draft, word) }
+                            featured = draft.words.isEmpty() && word != null && word in FeaturedStarters
+                        ) {
+                            if (word == null) openCustomWords() else model.addWord(draft, word)
+                        }
                     }
                     candidates?.status?.let { status ->
                         item(key = "status") {
@@ -135,9 +142,9 @@ internal fun CustomWordsScreen(model: BoardModel) {
     PageList { columns ->
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionButton("添加词语", Modifier.weight(1f)) { model.openEntryEditor(CustomEntryType.WORD) }
+                ActionButton("添加常用词", Modifier.weight(1f)) { model.openEntryEditor(CustomEntryType.WORD) }
                 if (words.isNotEmpty()) {
-                    ActionButton("管理词语", Modifier.weight(1f)) { model.manageEntries(CustomEntryType.WORD) }
+                    ActionButton("管理常用词", Modifier.weight(1f)) { model.manageEntries(CustomEntryType.WORD) }
                 }
             }
         }
@@ -198,12 +205,11 @@ private fun SentenceBox(draft: Draft, read: () -> Unit, undo: () -> Unit, clear:
         color = colors.surface,
         border = BorderStroke(1.dp, colors.outlineVariant)
     ) {
-        Column {
+        Row(Modifier.fillMaxWidth().padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(
                 onClick = read,
                 enabled = !empty,
-                modifier = Modifier.fillMaxWidth().testTag("sentence-bar")
-                    .heightIn(min = 52.dp, max = 96.dp)
+                modifier = Modifier.weight(1f).testTag("sentence-bar").height(96.dp)
                     .semantics { liveRegion = LiveRegionMode.Polite },
                 color = colors.surface,
                 contentColor = if (empty) colors.onSurfaceVariant else colors.onSurface
@@ -216,14 +222,21 @@ private fun SentenceBox(draft: Draft, read: () -> Unit, undo: () -> Unit, clear:
                     fontWeight = if (empty) FontWeight.Normal else FontWeight.Bold
                 )
             }
-            HorizontalDivider()
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                ActionButton("读整句", Modifier.weight(1.3f), primary = true, enabled = !empty, click = read)
-                ActionButton("撤销", Modifier.weight(1f), enabled = !empty, click = undo)
-                ActionButton("重来", Modifier.weight(1f), enabled = !empty, click = clear)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(read, Modifier.size(48.dp), enabled = !empty) {
+                    Icon(
+                        Icons.Filled.PlayArrow, contentDescription = "读整句",
+                        tint = if (empty) colors.onSurfaceVariant.copy(alpha = 0.38f) else colors.primary
+                    )
+                }
+                Column {
+                    IconButton(undo, Modifier.size(48.dp), enabled = !empty) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "撤销")
+                    }
+                    IconButton(clear, Modifier.size(48.dp), enabled = !empty) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "重来")
+                    }
+                }
             }
         }
     }

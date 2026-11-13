@@ -43,7 +43,7 @@ internal fun ModelSettingsScreen(model: BoardModel) {
     PageList {
         item {
             Panel {
-                BodyText("开启后，已选文字会发送给你配置的服务，生成后续候选。服务不可用时使用内置字词。")
+                BodyText("开启后，已选文字和自定义词语会发送给你配置的模型服务，帮助推荐姓名、物品等个性化候选。")
                 if (!saved || edited) {
                     BodyText("保存接口地址和模型名后，可在沟通页开启 AI 联想。")
                 }

@@ -66,9 +66,12 @@ internal data class OnlineWords(
     val words: List<String> = emptyList(),
     val busy: Boolean = false,
     val hasMore: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val vocabulary: List<String> = emptyList()
 )
-private data class PredictionRequest(val draft: Draft, val config: ModelSettings, val page: Int)
+private data class PredictionRequest(
+    val draft: Draft, val config: ModelSettings, val vocabulary: List<String>, val page: Int = 0
+)
 internal data class DraftCandidates(val draft: Draft, val candidates: WordCandidates)
 
 class BoardModel(private val app: Application) : AndroidViewModel(app) {
@@ -99,6 +102,9 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val customEntries = dao.custom().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    private val customWordVocabulary = customEntries.map { entries ->
+        entries.filter { it.type == CustomEntryType.WORD }.map { it.content.label }.distinct()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     private val savedPhrases = dao.saved().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val favorites = savedPhrases.map { saved ->
         saved.filter { it.favorite }.map { it.content.toPhrase(it.id) }
@@ -147,9 +153,12 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
         draft: Draft, config: ModelSettings, online: OnlineWords?, settings: BoardSettings,
         learned: Map<String, List<String>>
     ): WordCandidates {
-        val current = online?.takeIf { it.draft == draft && it.config == config }
+        val current = online?.takeIf {
+            it.draft == draft && it.config == config && it.vocabulary == customWordVocabulary.value
+        }
         val result = when {
             current == null || current.busy && current.words.isEmpty() -> null
+            current.words.isNotEmpty() -> PredictionResult.Ready(current.words)
             current.error != null -> PredictionResult.Failed(current.error)
             else -> PredictionResult.Ready(current.words)
         }
@@ -159,7 +168,12 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
         val onlineWords = if (config.enabled) current?.words.orEmpty() else emptyList()
         return candidates.copy(
             words = (candidates.words + onlineWords).distinctBy(WordPrediction::buttonText),
-            status = if (config.enabled && current?.busy == true) "正在加载联网词…" else candidates.status,
+            status = when {
+                !config.enabled -> candidates.status
+                current?.busy == true -> "正在加载联网词…"
+                current?.error != null -> current.error
+                else -> candidates.status
+            },
             canLoadMore = config.enabled && current != null && !current.busy && current.hasMore && current.error == null
         )
     }
@@ -178,27 +192,39 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch {
-            combine(draft, modelSettings, path, predictionActive, predictionPage) { draft, config, path, active, page ->
-                if (active && path.last().page == Page.HOME && config.enabled && draft.canPredict) {
-                    PredictionRequest(draft, config, page)
+            val inputs = combine(draft, modelSettings, customWordVocabulary) { draft, config, vocabulary ->
+                PredictionRequest(draft, config, vocabulary)
+            }
+            combine(inputs, path, predictionActive, predictionPage) { input, path, active, page ->
+                if (active && path.last().page == Page.HOME && input.config.enabled && input.draft.canPredict) {
+                    input.copy(page = page)
                 } else null
             }.distinctUntilChanged().collectLatest { request ->
                 if (request != null) {
-                    val (draft, config) = request
-                    val previous = mutableOnline.value?.takeIf { it.draft == draft && it.config == config }
-                    mutableOnline.value = (previous ?: OnlineWords(draft, config)).copy(busy = true, error = null)
+                    val (draft, config, vocabulary) = request
+                    val previous = mutableOnline.value?.takeIf {
+                        it.draft == draft && it.config == config && it.vocabulary == vocabulary
+                    }
+                    mutableOnline.value = (previous ?: OnlineWords(draft, config, vocabulary = vocabulary))
+                        .copy(busy = true, error = null)
                     delay(300)
-                    val builtIn = predictions.candidates(draft, false, null, libime = libime.await()).words
-                    val displayed = (builtIn + previous?.words.orEmpty()).distinctBy(WordPrediction::buttonText)
-                    val result = requestWords(config, draft.words, displayed)
-                    if (draft == mutableDraft.value && config == modelSettings.value) {
+                    val displayed = previous?.words.orEmpty()
+                    val excluded = if (displayed.isEmpty()) emptyList() else {
+                        val offline = predictions.candidates(draft, false, null, libime = libime.await()).words
+                        (displayed + offline).distinctBy(WordPrediction::buttonText)
+                    }
+                    val result = requestWords(config, draft.words, excluded, vocabulary)
+                    if (draft == mutableDraft.value && config == modelSettings.value &&
+                        vocabulary == customWordVocabulary.value
+                    ) {
                         val additions = (result as? PredictionResult.Ready)?.words.orEmpty()
                             .filter(draft::canAdd)
                             .filter { word -> displayed.none { WordPrediction.buttonText(it) == WordPrediction.buttonText(word) } }
                         mutableOnline.value = OnlineWords(
                             draft, config, previous?.words.orEmpty() + additions,
                             hasMore = additions.isNotEmpty(),
-                            error = (result as? PredictionResult.Failed)?.message
+                            error = (result as? PredictionResult.Failed)?.message,
+                            vocabulary = vocabulary
                         )
                     }
                 } else {
@@ -485,7 +511,10 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun requestWords(config: ModelSettings, words: List<String>, exclude: List<String> = emptyList()): PredictionResult {
+    private suspend fun requestWords(
+        config: ModelSettings, words: List<String>, exclude: List<String> = emptyList(),
+        vocabulary: List<String> = customWordVocabulary.value
+    ): PredictionResult {
         val url = ModelPrediction.endpoint(config.baseUrl)
             ?: return PredictionResult.Failed("请先保存 HTTPS 接口地址")
         val token = try {
@@ -495,7 +524,7 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
         } catch (_: Exception) {
             return PredictionResult.Failed("API Key 无法读取，请重新录入")
         }
-        return predictor.suggest(url, config.model, token, words, exclude)
+        return predictor.suggest(url, config.model, token, words, exclude, vocabulary)
     }
 
     fun resumed(value: Boolean) {

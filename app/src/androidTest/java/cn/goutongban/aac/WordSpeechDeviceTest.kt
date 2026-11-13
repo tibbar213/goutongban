@@ -4,6 +4,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.lifecycle.ViewModelProvider
@@ -31,7 +32,7 @@ class WordSpeechDeviceTest {
         ui.onNodeWithText("翻身").performClick()
         ui.waitUntil(12_000) { model.speech.state.value.completed >= completed + 2 }
         assertEquals("我想翻身", model.draft.value.text)
-        ui.onNodeWithText("读整句").performClick()
+        ui.onNodeWithContentDescription("读整句").performClick()
         ui.waitUntil(12_000) { model.speech.state.value.completed >= completed + 3 }
         assertEquals(VoiceStatus.READY, model.speech.state.value.status)
     }

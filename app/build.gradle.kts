@@ -13,8 +13,8 @@ android {
         applicationId = "cn.goutongban.aac"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.3.7"
+        versionCode = 13
+        versionName = "1.3.8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += listOf("zh-rCN")
     }

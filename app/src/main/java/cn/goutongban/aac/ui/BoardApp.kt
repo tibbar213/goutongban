@@ -24,11 +24,14 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -48,6 +51,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cn.goutongban.aac.BoardModel
 import cn.goutongban.aac.Page
 import cn.goutongban.aac.Screen
+import cn.goutongban.aac.R
 import cn.goutongban.aac.data.CustomEntryType
 import cn.goutongban.aac.model.Notice
 
@@ -133,9 +140,9 @@ private fun Screen.title(model: BoardModel): String = when (page) {
     Page.HOME -> "沟通板"
     Page.CUSTOM_WORDS -> "我的词语"
     Page.PHRASES -> "常用句"
-    Page.PHRASE_MANAGEMENT -> if (entryType() == CustomEntryType.WORD) "管理词语" else "管理整句"
+    Page.PHRASE_MANAGEMENT -> if (entryType() == CustomEntryType.WORD) "管理常用词" else "管理常用句"
     Page.PHRASE_EDITOR -> {
-        val name = if (entryType() == CustomEntryType.WORD) "词语" else "整句"
+        val name = if (entryType() == CustomEntryType.WORD) "常用词" else "常用句"
         if (id.isEmpty()) "添加$name" else "编辑$name"
     }
     Page.CATEGORY -> model.vocabulary.byCategory.getValue(id).label
@@ -174,13 +181,26 @@ private fun BoardHeader(title: String, back: (() -> Unit)?, action: @Composable 
 private fun AiPredictionButton(model: BoardModel) {
     val config by model.modelSettings.collectAsStateWithLifecycle()
     val busy by model.modelBusy.collectAsStateWithLifecycle()
-    ActionButton(
-        label = if (config.enabled) "AI 联想 · 开" else "AI 联想 · 关",
-        modifier = Modifier.testTag("ai-prediction"),
-        primary = config.enabled,
-        enabled = !busy,
-        click = model::toggleAiPrediction
-    )
+    val colors = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton({ model.openEntryEditor(CustomEntryType.WORD) }, Modifier.size(48.dp)) {
+            Icon(Icons.Filled.Add, contentDescription = "添加常用词")
+        }
+        IconToggleButton(
+            checked = config.enabled,
+            onCheckedChange = { model.toggleAiPrediction() },
+            modifier = Modifier.size(48.dp).testTag("ai-prediction").semantics {
+                stateDescription = if (config.enabled) "AI 联想已开启" else "AI 联想已关闭"
+            },
+            enabled = !busy,
+            colors = IconButtonDefaults.iconToggleButtonColors(
+                checkedContainerColor = colors.surfaceVariant,
+                checkedContentColor = colors.primary
+            )
+        ) {
+            Icon(painterResource(R.drawable.ic_cloud), contentDescription = "AI 联想")
+        }
+    }
 }
 
 private data class Destination(val page: Page, val label: String, val icon: ImageVector)

@@ -2,9 +2,12 @@ package cn.goutongban.aac
 
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -17,6 +20,8 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.state.ToggleableState
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import cn.goutongban.aac.data.PreferencesStore
@@ -44,8 +49,9 @@ class BoardUiTest {
     }
 
     private fun click(text: String) {
-        reveal(hasText(text))
-        ui.onNodeWithText(text).performClick()
+        val matcher = hasText(text) or hasContentDescription(text)
+        reveal(matcher)
+        ui.onNode(matcher).performClick()
     }
 
     private fun assertDialogText(text: String) {
@@ -59,7 +65,7 @@ class BoardUiTest {
         click("翻身")
         click("向左边")
         ui.onNodeWithText("我想翻身向左边").assertIsDisplayed()
-        ui.onNode(hasText("读整句") and hasAnyAncestor(
+        ui.onNode(hasContentDescription("读整句") and hasAnyAncestor(
             androidx.compose.ui.test.hasTestTag("sentence-box")
         )).assertIsDisplayed().performClick()
         click("撤销")
@@ -254,11 +260,13 @@ class BoardUiTest {
             ui.waitUntil(8_000) { ui.onAllNodes(hasText("模型设置已保存")).fetchSemanticsNodes().isNotEmpty() }
             ui.onNodeWithContentDescription("返回").performClick()
             ui.onNodeWithText("我想").assertIsDisplayed()
-            ui.onNodeWithText("AI 联想 · 关").performClick()
-            ui.waitUntil(8_000) { ui.onAllNodes(hasText("AI 联想 · 开")).fetchSemanticsNodes().isNotEmpty() }
+            ui.onNodeWithTag("ai-prediction").assertIsOff().performClick()
+            val active = SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, ToggleableState.On)
+            ui.waitUntil(8_000) { ui.onAllNodes(active).fetchSemanticsNodes().isNotEmpty() }
             ui.onNodeWithText("喝水").assertIsDisplayed()
-            ui.onNodeWithText("AI 联想 · 开").performClick()
-            ui.waitUntil(8_000) { ui.onAllNodes(hasText("AI 联想 · 关")).fetchSemanticsNodes().isNotEmpty() }
+            ui.onNodeWithTag("ai-prediction").assertIsOn().performClick()
+            ui.waitUntil(8_000) { ui.onAllNodes(active).fetchSemanticsNodes().isEmpty() }
+            ui.onNodeWithTag("ai-prediction").assertIsOff()
             ui.onNodeWithText("我想").assertIsDisplayed()
             reveal(hasText("喝水"))
         } finally {
@@ -279,7 +287,7 @@ class BoardUiTest {
         val phrase = "请把蓝色水杯拿过来"
         val word = "老花镜"
         ui.onNodeWithTag("tab-phrases").performClick()
-        click("添加整句")
+        click("添加常用句")
         ui.onNodeWithText("词语内容").assertDoesNotExist()
         ui.onNodeWithText("整句内容").performTextInput(phrase)
         click("保存")
@@ -289,11 +297,11 @@ class BoardUiTest {
         ui.onNodeWithText("刚才的话").assertDoesNotExist()
         ui.onNodeWithText("重播").assertDoesNotExist()
         ui.onNodeWithTag("tab-home").performClick()
-        click("添加词语")
+        click("添加常用词")
         ui.onNodeWithText("整句内容").assertDoesNotExist()
         ui.onNodeWithText("词语内容").performTextInput(word)
         click("保存")
-        ui.waitUntil(8_000) { ui.onAllNodes(hasText("我的词语")).fetchSemanticsNodes().isNotEmpty() }
+        reveal(hasText("我的词语"))
         click("我想找")
         click("我的词语")
         click(word)

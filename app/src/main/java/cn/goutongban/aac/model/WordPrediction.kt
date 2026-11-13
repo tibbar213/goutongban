@@ -69,8 +69,9 @@ class WordPrediction(sequences: List<List<String>>) {
         if (result == null) return WordCandidates(builtIn, "正在加载联网词…")
         val modelWords = (result as? PredictionResult.Ready)?.words.orEmpty().filter(draft::canAdd)
         return WordCandidates(
-            (builtIn + modelWords).distinctBy(::buttonText),
-            (result as? PredictionResult.Failed)?.message
+            merge(modelWords + next(draft, libime)),
+            status = (result as? PredictionResult.Failed)?.message,
+            hasOnlineWords = modelWords.isNotEmpty()
         )
     }
 
@@ -108,7 +109,8 @@ class WordPrediction(sequences: List<List<String>>) {
 internal data class WordCandidates(
     val words: List<String> = emptyList(),
     val status: String? = null,
-    val canLoadMore: Boolean = false
+    val canLoadMore: Boolean = false,
+    val hasOnlineWords: Boolean = false
 )
 
 data class Draft(val words: List<String> = emptyList()) {

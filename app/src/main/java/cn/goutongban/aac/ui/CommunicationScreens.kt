@@ -18,10 +18,10 @@ internal fun PhraseScreen(model: BoardModel) {
     val favoriteIds = favorites.mapTo(hashSetOf()) { it.id }
     PageList { columns ->
         item {
-            ActionButton("添加整句", Modifier.fillMaxWidth()) { model.openEntryEditor(CustomEntryType.PHRASE) }
+            ActionButton("添加常用句", Modifier.fillMaxWidth()) { model.openEntryEditor(CustomEntryType.PHRASE) }
         }
         if (library.custom.isNotEmpty()) item {
-            ActionButton("管理整句", Modifier.fillMaxWidth()) { model.manageEntries(CustomEntryType.PHRASE) }
+            ActionButton("管理常用句", Modifier.fillMaxWidth()) { model.manageEntries(CustomEntryType.PHRASE) }
         }
         val saved = (library.custom + library.saved + favorites).distinctBy(Phrase::id)
         if (saved.isNotEmpty()) {
