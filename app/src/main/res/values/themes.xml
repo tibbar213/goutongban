@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.CommunicationBoard" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F7F5EE</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorAccent">#164779</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

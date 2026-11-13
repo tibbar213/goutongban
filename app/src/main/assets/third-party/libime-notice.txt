@@ -1,0 +1,16 @@
+LibIME Simplified Chinese language model
+Copyright 2022–2025 CSSlayer <wengxt@gmail.com>
+SPDX-License-Identifier: LGPL-2.1-or-later
+
+libime-next-words.tsv was adapted for 沟通板 on 2026-11-13.
+It contains selected and ranked two- and three-word sequences from the
+upstream ARPA model as a UTF-8 lookup table.
+
+The original lm_sc.arpa-20250113.tar.zst and the conversion script are
+included in the accompanying 沟通板 source archive under third-party/ and
+tools/. The model and its converted lookup table use the license in
+LGPL-2.1-or-later.txt.
+
+Upstream model: https://download.fcitx-im.org/data/lm_sc.arpa-20250113.tar.zst
+Upstream project: https://github.com/fcitx/libime
+Source SHA-256: ee83ecf20d52e8bccdba4cf6cd57183d53c257713a5eb77ee3a63d50fc3796dd
