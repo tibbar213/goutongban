@@ -89,6 +89,7 @@ fun BoardApp(model: BoardModel, fullScreen: (Boolean) -> Unit) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.safeDrawing,
+            bottomBar = { if (!keyboardOpen) BottomNavigation(activeTab, update.release != null, model::tab) },
             snackbarHost = { SnackbarHost(snack) }
         ) { insets ->
             Column(Modifier.fillMaxSize().padding(insets).consumeWindowInsets(insets)) {
@@ -117,7 +118,6 @@ fun BoardApp(model: BoardModel, fullScreen: (Boolean) -> Unit) {
                     if (screen.page == Page.PHRASE_EDITOR) content()
                     else holder.SaveableStateProvider("${screen.page}/${screen.id}/${screen.section}", content)
                 }
-                if (!keyboardOpen) BottomNavigation(activeTab, update.release != null, model::tab)
             }
         }
         notice?.let {
@@ -199,8 +199,7 @@ private fun BottomNavigation(active: Page, updateAvailable: Boolean, navigate: (
         HorizontalDivider()
         NavigationBar(
             modifier = Modifier.heightIn(min = 60.dp),
-            containerColor = colors.surface,
-            windowInsets = WindowInsets(0, 0, 0, 0)
+            containerColor = colors.surface
         ) {
             destinations.forEach { item ->
                 NavigationBarItem(

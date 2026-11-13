@@ -31,8 +31,16 @@ class BoardUiTest {
     @get:Rule val ui = createAndroidComposeRule<MainActivity>()
 
     private fun reveal(matcher: SemanticsMatcher) {
-        try { ui.onNode(matcher).assertIsDisplayed() }
-        catch (_: AssertionError) { ui.onNodeWithTag("board-page").performScrollToNode(matcher) }
+        ui.waitUntil(8_000) {
+            try {
+                try { ui.onNode(matcher).assertIsDisplayed() }
+                catch (_: AssertionError) { ui.onNodeWithTag("board-page").performScrollToNode(matcher) }
+                ui.onNode(matcher).assertIsDisplayed()
+                true
+            } catch (_: AssertionError) {
+                false
+            }
+        }
     }
 
     private fun click(text: String) {
@@ -159,6 +167,7 @@ class BoardUiTest {
         val sentence = "我想听音乐"
         listOf("我", "想", "听音乐", "读整句").forEach(::click)
         ui.onNodeWithTag("tab-history").performClick()
+        reveal(androidx.compose.ui.test.hasContentDescription("收藏：$sentence"))
         ui.onNodeWithContentDescription("收藏：$sentence").assertIsDisplayed().performClick()
         ui.waitUntil(8_000) {
             ui.onAllNodes(androidx.compose.ui.test.hasContentDescription("取消收藏：$sentence"))
@@ -168,6 +177,7 @@ class BoardUiTest {
         ui.onNodeWithText("清空").performClick()
         ui.onNodeWithText("朗读过的话会显示在这里。").assertIsDisplayed()
         ui.onNodeWithTag("tab-phrases").performClick()
+        reveal(hasText(sentence) and hasClickAction())
         ui.onNode(hasText(sentence) and hasClickAction()).assertIsDisplayed().performClick()
         ui.onNodeWithContentDescription("取消收藏：$sentence").performClick()
         ui.waitUntil(8_000) { ui.onAllNodes(hasText(sentence)).fetchSemanticsNodes().isEmpty() }
@@ -246,6 +256,7 @@ class BoardUiTest {
             ui.onNodeWithText("我想").assertIsDisplayed()
             ui.onNodeWithText("AI 联想 · 关").performClick()
             ui.waitUntil(8_000) { ui.onAllNodes(hasText("AI 联想 · 开")).fetchSemanticsNodes().isNotEmpty() }
+            ui.onNodeWithText("喝水").assertIsDisplayed()
             ui.onNodeWithText("AI 联想 · 开").performClick()
             ui.waitUntil(8_000) { ui.onAllNodes(hasText("AI 联想 · 关")).fetchSemanticsNodes().isNotEmpty() }
             ui.onNodeWithText("我想").assertIsDisplayed()

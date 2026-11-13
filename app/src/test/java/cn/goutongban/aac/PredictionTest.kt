@@ -120,8 +120,10 @@ class PredictionTest {
             server.enqueue(MockResponse().setBody(JSONObject().put("choices", JSONArray().put(
                 JSONObject().put("message", JSONObject().put("content", content))
             )).toString()))
-            val result = ModelPrediction().suggest(server.url("/v1/chat/completions"), "demo", "test-key", listOf("我想"))
-            assertEquals(PredictionResult.Ready(listOf("喝水", "休息", "？")), result)
+            val result = ModelPrediction().suggest(
+                server.url("/v1/chat/completions"), "demo", "test-key", listOf("我想"), listOf("休息")
+            )
+            assertEquals(PredictionResult.Ready(listOf("喝水", "？")), result)
             val request = server.takeRequest()
             assertEquals("POST", request.method)
             assertEquals("/v1/chat/completions", request.path)
