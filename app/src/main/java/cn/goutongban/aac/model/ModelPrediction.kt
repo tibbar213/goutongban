@@ -13,7 +13,10 @@ import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
 import kotlin.coroutines.resume
 
 internal class ModelPrediction(private val client: OkHttpClient = defaultClient()) {
@@ -29,7 +32,13 @@ internal class ModelPrediction(private val client: OkHttpClient = defaultClient(
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    continuation.resume(PredictionResult.Failed("暂时连不上模型服务"))
+                    val message = when (e) {
+                        is InterruptedIOException -> "模型响应超时，请稍后重试"
+                        is UnknownHostException -> "无法解析模型服务地址，请检查网络"
+                        is SSLException -> "模型服务的安全连接失败，请检查接口地址"
+                        else -> "暂时连不上模型服务，请检查网络"
+                    }
+                    continuation.resume(PredictionResult.Failed(message))
                 }
 
                 override fun onResponse(call: Call, response: Response) {
@@ -112,8 +121,9 @@ internal class ModelPrediction(private val client: OkHttpClient = defaultClient(
         }
 
         private fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(4, TimeUnit.SECONDS)
-            .callTimeout(8, TimeUnit.SECONDS)
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(30, TimeUnit.SECONDS)
             .followRedirects(false)
             .followSslRedirects(false)
             .retryOnConnectionFailure(false)

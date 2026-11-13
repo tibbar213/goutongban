@@ -70,7 +70,7 @@ class WordPrediction(sequences: List<List<String>>) {
         val modelWords = (result as? PredictionResult.Ready)?.words.orEmpty().filter(draft::canAdd)
         return WordCandidates(
             (builtIn + modelWords).distinctBy(::buttonText),
-            if (result is PredictionResult.Failed) "联网词暂时无法加载" else null
+            (result as? PredictionResult.Failed)?.message
         )
     }
 

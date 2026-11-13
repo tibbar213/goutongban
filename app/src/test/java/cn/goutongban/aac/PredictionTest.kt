@@ -20,6 +20,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 class PredictionTest {
@@ -67,9 +68,24 @@ class PredictionTest {
             book.candidates(next, true, ready).words
         )
         assertEquals(book.next(next), book.candidates(next, true, failed).words)
+        assertEquals("网络故障", book.candidates(next, true, failed).status)
         assertEquals(book.next(next), book.candidates(next, true, PredictionResult.Ready(emptyList())).words)
         assertTrue(book.next(next.add("。")).contains("再"))
         assertEquals(WordPrediction.starters, book.candidates(next.add("。"), true, null).words)
+    }
+
+    @Test fun predictionWaitsForAResponseThatTakesLongerThanEightSeconds() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setHeadersDelay(9, TimeUnit.SECONDS).setBody(
+                JSONObject().put("choices", JSONArray().put(
+                    JSONObject().put("message", JSONObject().put("content", "[\"喝水\"]"))
+                )).toString()
+            ))
+            assertEquals(
+                PredictionResult.Ready(listOf("喝水")),
+                ModelPrediction().suggest(server.url("/v1/chat/completions"), "demo", "", listOf("我想"))
+            )
+        }
     }
 
     @Test fun offlineInputMethodExpandsContextWithoutAddingUnrelatedCharactersToKnownEndings() {

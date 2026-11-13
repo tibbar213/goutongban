@@ -66,7 +66,7 @@ internal data class OnlineWords(
     val words: List<String> = emptyList(),
     val busy: Boolean = false,
     val hasMore: Boolean = true,
-    val failed: Boolean = false
+    val error: String? = null
 )
 private data class PredictionRequest(val draft: Draft, val config: ModelSettings, val page: Int)
 internal data class DraftCandidates(val draft: Draft, val candidates: WordCandidates)
@@ -150,7 +150,7 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
         val current = online?.takeIf { it.draft == draft && it.config == config }
         val result = when {
             current == null || current.busy && current.words.isEmpty() -> null
-            current.failed -> PredictionResult.Failed("联网词暂时无法加载")
+            current.error != null -> PredictionResult.Failed(current.error)
             else -> PredictionResult.Ready(current.words)
         }
         val personal = if (settings.learnWords) learned[predictionContext(draft.text)].orEmpty() else emptyList()
@@ -160,7 +160,7 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
         return candidates.copy(
             words = (candidates.words + onlineWords).distinctBy(WordPrediction::buttonText),
             status = if (config.enabled && current?.busy == true) "正在加载联网词…" else candidates.status,
-            canLoadMore = config.enabled && current != null && !current.busy && current.hasMore && !current.failed
+            canLoadMore = config.enabled && current != null && !current.busy && current.hasMore && current.error == null
         )
     }
 
@@ -186,7 +186,7 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
                 if (request != null) {
                     val (draft, config) = request
                     val previous = mutableOnline.value?.takeIf { it.draft == draft && it.config == config }
-                    mutableOnline.value = (previous ?: OnlineWords(draft, config)).copy(busy = true, failed = false)
+                    mutableOnline.value = (previous ?: OnlineWords(draft, config)).copy(busy = true, error = null)
                     delay(300)
                     val builtIn = predictions.candidates(draft, false, null, libime = libime.await()).words
                     val displayed = (builtIn + previous?.words.orEmpty()).distinctBy(WordPrediction::buttonText)
@@ -198,7 +198,7 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
                         mutableOnline.value = OnlineWords(
                             draft, config, previous?.words.orEmpty() + additions,
                             hasMore = additions.isNotEmpty(),
-                            failed = result is PredictionResult.Failed
+                            error = (result as? PredictionResult.Failed)?.message
                         )
                     }
                 } else {
@@ -210,7 +210,7 @@ class BoardModel(private val app: Application) : AndroidViewModel(app) {
 
     fun loadMorePredictions(expected: Draft) {
         val current = mutableOnline.value ?: return
-        if (current.draft != expected || expected != draft.value || current.busy || !current.hasMore || current.failed) return
+        if (current.draft != expected || expected != draft.value || current.busy || !current.hasMore || current.error != null) return
         mutableOnline.value = current.copy(busy = true)
         predictionPage.value += 1
     }
